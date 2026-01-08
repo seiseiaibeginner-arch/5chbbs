@@ -8,13 +8,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { data: reactions, error } = await supabase
         .from('reactions')
-        .select('*')
+        .select('reaction_type, count')
         .eq('post_id', postId);
 
       if (error) throw error;
 
       // リアクションをタイプごとに集計
-      const reactionCounts = {
+      const reactionCounts: Record<string, number> = {
         like: 0,
         laugh: 0,
         think: 0,
@@ -22,9 +22,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         fire: 0,
       };
 
-      reactions.forEach((reaction) => {
+      reactions?.forEach((reaction) => {
         if (reaction.reaction_type in reactionCounts) {
-          reactionCounts[reaction.reaction_type as keyof typeof reactionCounts]++;
+          reactionCounts[reaction.reaction_type] = reaction.count || 0;
         }
       });
 
@@ -41,14 +41,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid reaction type' });
       }
 
-      const { error } = await supabase
+      // 既存のリアクションを確認
+      const { data: existing, error: selectError } = await supabase
         .from('reactions')
-        .insert({
-          post_id: Number(postId),
-          reaction_type: reactionType,
-        });
+        .select('count')
+        .eq('post_id', Number(postId))
+        .eq('reaction_type', reactionType)
+        .single();
 
-      if (error) throw error;
+      if (selectError && selectError.code !== 'PGRST116') {
+        // PGRST116 = no rows returned (new reaction)
+        throw selectError;
+      }
+
+      if (existing) {
+        // 既存のリアクションがあればcountを増やす
+        const { error: updateError } = await supabase
+          .from('reactions')
+          .update({ count: (existing.count || 0) + 1 })
+          .eq('post_id', Number(postId))
+          .eq('reaction_type', reactionType);
+
+        if (updateError) throw updateError;
+      } else {
+        // 新しいリアクションを追加
+        const { error: insertError } = await supabase
+          .from('reactions')
+          .insert({
+            post_id: Number(postId),
+            reaction_type: reactionType,
+            count: 1,
+          });
+
+        if (insertError) throw insertError;
+      }
 
       res.status(200).json({ success: true });
     } catch (error) {

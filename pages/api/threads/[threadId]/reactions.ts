@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       reactions?.forEach((r) => {
         if (reactionsByPost[r.post_id]) {
-          reactionsByPost[r.post_id][r.reaction_type] = r.count;
+          reactionsByPost[r.post_id][r.reaction_type] = r.count || 0;
         }
       });
 
