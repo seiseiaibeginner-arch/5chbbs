@@ -141,9 +141,20 @@ export function calculateMomentum(postCount: number, createdAt: string): number 
   return Math.round((postCount / hoursDiff) * 10) / 10;
 }
 
-// HOTかどうかを判定（厳しめの条件）
-export function isHot(postCount: number, createdAt: string): boolean {
+// HOTかどうかを判定（最終投稿時刻も考慮）
+export function isHot(postCount: number, createdAt: string, lastPostedAt?: string): boolean {
   const momentum = calculateMomentum(postCount, createdAt);
+  
+  // 最終投稿が30分以上前ならHOTではない（活発でないスレッド）
+  if (lastPostedAt) {
+    const lastPosted = new Date(lastPostedAt).getTime();
+    const now = Date.now();
+    const minutesSinceLastPost = (now - lastPosted) / (1000 * 60);
+    if (minutesSinceLastPost > 30) {
+      return false;
+    }
+  }
+  
   // 勢いが2.0以上（1時間に2レス以上）または投稿数が50件以上
   return momentum >= 2.0 || postCount >= 50;
 }

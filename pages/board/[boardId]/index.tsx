@@ -238,7 +238,7 @@ export default function BoardPage() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                {isHot(thread.post_count, thread.created_at) && (
+                                {isHot(thread.post_count, thread.created_at, thread.last_posted_at) && (
                                   <Badge variant="hot" className="text-xs">
                                     <Flame className="w-3 h-3 mr-1" />
                                     HOT
